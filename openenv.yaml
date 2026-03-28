@@ -3,7 +3,7 @@ openenv:
   version: 0.1.0
   description: OpenEnv-compatible supply chain inventory management environment
   framework: fastapi
-  entrypoint: app:app
+  entrypoint: server.app:app
   tasks:
     - name: easy
       description: Stable demand, low variability

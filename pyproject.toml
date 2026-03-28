@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "OpenEnv environment for supply chain inventory management"
 authors = [{name = "Aashutosh Rana"}]
 dependencies = [
+    "openenv-core>=0.2.0",
     "numpy",
     "pydantic",
     "typing-extensions",
@@ -18,3 +19,4 @@ dependencies = [
 
 [project.scripts]
 inference = "supply_chain_env.run:main"
+server = "supply_chain_env.run:serve"
