@@ -19,4 +19,4 @@ dependencies = [
 
 [project.scripts]
 inference = "supply_chain_env.run:main"
-server = "supply_chain_env.run:serve"
+server = "server.app:main"
