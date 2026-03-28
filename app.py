@@ -1,10 +1,10 @@
 import os
 import sys
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import uvicorn
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
@@ -51,34 +51,54 @@ def root() -> Dict[str, Any]:
 
 
 @app.post("/reset")
-def reset(
-    payload: Optional[ResetRequest] = Body(default=None),
-    task: str = "easy",
-    seed: int = 42,
-) -> Dict[str, Any]:
-    req = payload if payload is not None else ResetRequest(task=task, seed=seed)
-    if req.task not in TASKS:
-        raise HTTPException(status_code=400, detail=f"Unknown task: {req.task}")
+async def reset(request: Request, task: str = "easy", seed: int = 42) -> Dict[str, Any]:
+    body: Dict[str, Any] = {}
+    try:
+        parsed = await request.json()
+        if isinstance(parsed, dict):
+            body = parsed
+    except Exception:
+        # Accept empty or invalid JSON to stay compatible with external checkers.
+        body = {}
 
-    env = SupplyChainEnv(task=req.task, seed=req.seed)
-    obs = env.reset(seed=req.seed)
+    req_task = str(body.get("task", task))
+    req_seed = int(body.get("seed", seed))
+
+    if req_task not in TASKS:
+        raise HTTPException(status_code=400, detail=f"Unknown task: {req_task}")
+
+    env = SupplyChainEnv(task=req_task, seed=req_seed)
+    obs = env.reset(seed=req_seed)
     session_id = str(uuid.uuid4())
     SESSIONS[session_id] = SessionData(
         env=env,
-        task=req.task,
-        seed=req.seed,
+        task=req_task,
+        seed=req_seed,
         trajectory=[],
     )
     return {
         "session_id": session_id,
-        "task": req.task,
+        "task": req_task,
         "observation": obs.model_dump(),
     }
 
 
 @app.get("/reset")
 def reset_get(task: str = "easy", seed: int = 42) -> Dict[str, Any]:
-    return reset(ResetRequest(task=task, seed=seed))
+    env = SupplyChainEnv(task=task, seed=seed)
+    obs = env.reset(seed=seed)
+    session_id = str(uuid.uuid4())
+    SESSIONS[session_id] = SessionData(
+        env=env,
+        task=task,
+        seed=seed,
+        trajectory=[],
+    )
+    return {
+        "session_id": session_id,
+        "task": task,
+        "observation": obs.model_dump(),
+    }
 
 
 @app.post("/step")
