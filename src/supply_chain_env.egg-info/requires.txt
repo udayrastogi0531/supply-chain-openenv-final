@@ -1,0 +1,6 @@
+numpy
+pydantic
+typing-extensions
+fastapi
+uvicorn
+pyyaml

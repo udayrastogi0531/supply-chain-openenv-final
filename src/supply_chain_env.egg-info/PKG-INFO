@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: supply-chain-env
+Version: 0.1.0
+Summary: OpenEnv environment for supply chain inventory management
+Author: Aashutosh Rana
+Requires-Dist: numpy
+Requires-Dist: pydantic
+Requires-Dist: typing-extensions
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: pyyaml

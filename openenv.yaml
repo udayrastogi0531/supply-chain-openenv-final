@@ -1,0 +1,43 @@
+openenv:
+  name: supply-chain-env
+  version: 0.1.0
+  description: Minimal OpenEnv-compatible supply chain environment
+  tasks:
+    - name: easy
+      description: Stable demand, low noise
+    - name: medium
+      description: Seasonal demand and moderate variability
+    - name: hard
+      description: High variability with disruptions and delayed orders
+  action_space:
+    type: continuous
+    shape: [num_products]
+    description: Non-negative order quantities per product
+  observation_space:
+    type: dict
+    fields:
+      inventory:
+        type: array
+        shape: [num_products]
+      time:
+        type: int
+      demand_history:
+        type: array
+        shape: [10, num_products]
+      weather:
+        type: float
+      promotion:
+        type: float
+      sustainability_score:
+        type: float
+  reward_function:
+    description: Shaped reward with revenue, service bonus, and inventory/stockout penalties
+  api:
+    base_path: /
+    endpoints:
+      reset: /reset
+      step: /step
+      state: /state
+      tasks: /tasks
+      baseline: /baseline
+      grader: /grader

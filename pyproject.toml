@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supply-chain-env"
+version = "0.1.0"
+description = "OpenEnv environment for supply chain inventory management"
+authors = [{name = "Aashutosh Rana"}]
+dependencies = [
+    "numpy",
+    "pydantic",
+    "typing-extensions",
+    "fastapi",
+    "uvicorn",
+    "pyyaml",
+]
+
+[project.scripts]
+inference = "supply_chain_env.run:main"
