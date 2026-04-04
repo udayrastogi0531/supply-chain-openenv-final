@@ -2,8 +2,10 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir openenv-core>=0.2.0 numpy pydantic typing-extensions fastapi uvicorn pyyaml
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pyproject.toml .
 COPY src/ ./src/
