@@ -41,7 +41,14 @@ def test_grader_ranges():
         env = SupplyChainEnv(task=task, episode_length=5)
         traj = run_episode(env, steps=5)
         score = grader(env, [{'reward': t['reward'], 'info': t['info']} for t in traj])
-        assert 0.0 <= score <= 1.0
+        assert 0.0 < score < 1.0
+
+
+def test_grader_empty_trajectory_still_strictly_bounded():
+    env = SupplyChainEnv(task='easy', episode_length=5)
+    assert 0.0 < grade_easy(env, []) < 1.0
+    assert 0.0 < grade_medium(env, []) < 1.0
+    assert 0.0 < grade_hard(env, []) < 1.0
 
 if __name__ == '__main__':
     pytest.main([os.path.dirname(__file__)])
