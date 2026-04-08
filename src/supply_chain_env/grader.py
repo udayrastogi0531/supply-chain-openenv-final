@@ -11,12 +11,18 @@ def _safe_score(score: float) -> float:
 
 def grade(task: str, env: Any, trajectory: List[Dict[str, Any]]) -> float:
     if not trajectory:
-        return 0.5
+        score = 0.5
+    else:
+        if task == "easy":
+            score = grade_easy(env, trajectory)
+        elif task == "medium":
+            score = grade_medium(env, trajectory)
+        elif task == "hard":
+            score = grade_hard(env, trajectory)
+        else:
+            raise ValueError(f"Unknown task: {task}")
 
-    if task == "easy":
-        return _safe_score(grade_easy(env, trajectory))
-    if task == "medium":
-        return _safe_score(grade_medium(env, trajectory))
-    if task == "hard":
-        return _safe_score(grade_hard(env, trajectory))
-    raise ValueError(f"Unknown task: {task}")
+    if score != score:
+        score = 0.5
+    score = max(0.01, min(0.99, score))
+    return score
