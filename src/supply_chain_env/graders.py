@@ -3,9 +3,10 @@ from typing import Any, Dict, List
 
 
 def _clip01(value: float) -> float:
-    # Keep scores strictly in the open interval (0, 1) for validator compliance.
-    eps = 1e-6
-    return float(max(eps, min(1.0 - eps, value)))
+    eps = 0.01
+    if not np.isfinite(value):
+        return 0.5
+    return float(max(eps, min(0.99, value)))
 
 
 def _extract_series(trajectory: List[Dict[str, Any]], key: str) -> np.ndarray:
@@ -15,7 +16,7 @@ def _extract_series(trajectory: List[Dict[str, Any]], key: str) -> np.ndarray:
 def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
     """Easy: reward stable service with low ordering volatility."""
     if not trajectory:
-        return _clip01(0.0)
+        return 0.5
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -29,8 +30,8 @@ def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
 
 def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
     """Medium: reward adaptation to trend and service quality."""
-    if len(trajectory) < 3:
-        return _clip01(0.0)
+    if not trajectory:
+        return 0.5
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -40,18 +41,20 @@ def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
 
     d_delta = np.diff(demand)
     o_delta = np.diff(orders)
-    if np.std(d_delta) < 1e-9 or np.std(o_delta) < 1e-9:
+    if len(d_delta) == 0 or len(o_delta) == 0:
+        trend_follow = 0.5
+    elif np.std(d_delta) < 1e-9 or np.std(o_delta) < 1e-9:
         trend_follow = 0.5
     else:
         corr = float(np.corrcoef(d_delta, o_delta)[0, 1])
-        trend_follow = (corr + 1.0) / 2.0
+        trend_follow = 0.5 if not np.isfinite(corr) else (corr + 1.0) / 2.0
 
     return _clip01(0.6 * service_level + 0.4 * trend_follow)
 
 def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
     """Hard: reward robust service with efficient ordering under volatility."""
     if not trajectory:
-        return _clip01(0.0)
+        return 0.5
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")

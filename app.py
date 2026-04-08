@@ -62,7 +62,10 @@ async def reset(request: Request, task: str = "easy", seed: int = 42) -> Dict[st
         body = {}
 
     req_task = str(body.get("task", task))
-    req_seed = int(body.get("seed", seed))
+    try:
+        req_seed = int(body.get("seed", seed))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid seed")
 
     if req_task not in TASKS:
         raise HTTPException(status_code=400, detail=f"Unknown task: {req_task}")
@@ -105,7 +108,10 @@ def reset_get(task: str = "easy", seed: int = 42) -> Dict[str, Any]:
 def step(payload: StepRequest) -> Dict[str, Any]:
     session = _ensure_session(payload.session_id)
     env = session.env
-    obs, reward, done, info = env.step(Action(orders=payload.orders))
+    try:
+        obs, reward, done, info = env.step(Action(orders=payload.orders))
+    except (AssertionError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
     session.trajectory.append({"reward": reward, "info": info})
     return {
         "observation": obs.model_dump(),
