@@ -1,12 +1,6 @@
 from typing import Any, Dict, List
 
-from .graders import grade_easy, grade_medium, grade_hard
-
-
-def _safe_score(score: float) -> float:
-    if score != score:
-        return 0.5
-    return float(max(0.01, min(0.99, score)))
+from .graders import force_safe, grade_easy, grade_medium, grade_hard
 
 
 def grade(task: str, env: Any, trajectory: List[Dict[str, Any]]) -> float:
@@ -22,7 +16,5 @@ def grade(task: str, env: Any, trajectory: List[Dict[str, Any]]) -> float:
         else:
             raise ValueError(f"Unknown task: {task}")
 
-    if score != score:
-        score = 0.5
-    score = max(0.01, min(0.99, score))
+    score = force_safe(force_safe(score))
     return score

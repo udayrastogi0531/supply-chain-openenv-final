@@ -2,11 +2,25 @@ import numpy as np
 from typing import Any, Dict, List
 
 
-def _clip01(value: float) -> float:
-    eps = 0.01
-    if not np.isfinite(value):
+def force_safe(score: float) -> float:
+    try:
+        score = float(score)
+    except (TypeError, ValueError):
+        score = 0.5
+    if not np.isfinite(score):
+        score = 0.5
+    if score != score:
         return 0.5
-    return float(max(eps, min(0.99, value)))
+    if score <= 0.0:
+        return 0.01
+    if score >= 1.0:
+        return 0.99
+    return float(max(0.01, min(0.99, score)))
+
+
+def _clip01(value: float) -> float:
+    score = value
+    return force_safe(force_safe(score))
 
 
 def _extract_series(trajectory: List[Dict[str, Any]], key: str) -> np.ndarray:
@@ -27,9 +41,7 @@ def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
         smoothness = 1.0 / (1.0 + volatility)
         score = 0.75 * service_level + 0.25 * smoothness
 
-    if score != score:
-        score = 0.5
-    score = max(0.01, min(0.99, score))
+    score = force_safe(force_safe(score))
     return score
 
 def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
@@ -55,9 +67,7 @@ def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
 
         score = 0.6 * service_level + 0.4 * trend_follow
 
-    if score != score:
-        score = 0.5
-    score = max(0.01, min(0.99, score))
+    score = force_safe(force_safe(score))
     return score
 
 def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
@@ -87,7 +97,5 @@ def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
 
         score = 0.45 * service_level + 0.35 * stockout_score + 0.20 * efficiency_score
 
-    if score != score:
-        score = 0.5
-    score = max(0.01, min(0.99, score))
+    score = force_safe(force_safe(score))
     return score
