@@ -4,7 +4,7 @@ import uuid
 from typing import Any, Dict, List
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
@@ -36,13 +36,13 @@ class SessionData(BaseModel):
 
 
 app = FastAPI(title="Supply Chain OpenEnv API", version="0.1.0")
-SESSIONS: Dict[str, SessionData] = {}
+sessions: Dict[str, SessionData] = {}
 
 
 def _ensure_session(session_id: str) -> SessionData:
-    if session_id not in SESSIONS:
+    if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Unknown session_id. Call /reset first.")
-    return SESSIONS[session_id]
+    return sessions[session_id]
 
 
 @app.get("/")
@@ -51,55 +51,22 @@ def root() -> Dict[str, Any]:
 
 
 @app.post("/reset")
-async def reset(request: Request, task: str = "easy", seed: int = 42) -> Dict[str, Any]:
-    body: Dict[str, Any] = {}
-    try:
-        parsed = await request.json()
-        if isinstance(parsed, dict):
-            body = parsed
-    except Exception:
-        # Accept empty or invalid JSON to stay compatible with external checkers.
-        body = {}
+def reset(req: ResetRequest) -> Dict[str, Any]:
+    if req.task not in TASKS:
+        raise HTTPException(status_code=400, detail=f"Unknown task: {req.task}")
 
-    req_task = str(body.get("task", task))
-    try:
-        req_seed = int(body.get("seed", seed))
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="Invalid seed")
-
-    if req_task not in TASKS:
-        raise HTTPException(status_code=400, detail=f"Unknown task: {req_task}")
-
-    env = SupplyChainEnv(task=req_task, seed=req_seed)
-    obs = env.reset(seed=req_seed)
+    env = SupplyChainEnv(task=req.task, seed=req.seed)
+    obs = env.reset(seed=req.seed)
     session_id = str(uuid.uuid4())
-    SESSIONS[session_id] = SessionData(
+    sessions[session_id] = SessionData(
         env=env,
-        task=req_task,
-        seed=req_seed,
+        task=req.task,
+        seed=req.seed,
         trajectory=[],
     )
     return {
         "session_id": session_id,
-        "task": req_task,
-        "observation": obs.model_dump(),
-    }
-
-
-@app.get("/reset")
-def reset_get(task: str = "easy", seed: int = 42) -> Dict[str, Any]:
-    env = SupplyChainEnv(task=task, seed=seed)
-    obs = env.reset(seed=seed)
-    session_id = str(uuid.uuid4())
-    SESSIONS[session_id] = SessionData(
-        env=env,
-        task=task,
-        seed=seed,
-        trajectory=[],
-    )
-    return {
-        "session_id": session_id,
-        "task": task,
+        "task": req.task,
         "observation": obs.model_dump(),
     }
 
