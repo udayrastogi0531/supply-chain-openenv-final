@@ -2,7 +2,7 @@ from typing import Dict, List
 import numpy as np
 
 from .environment import Action, SupplyChainEnv
-from .graders import grade_easy, grade_medium, grade_hard
+from .graders import FINAL_SCORE, grade_easy, grade_medium, grade_hard
 
 
 def inference_agent(observation) -> Action:
@@ -19,7 +19,7 @@ def inference_agent(observation) -> Action:
     return Action(orders=orders)
 
 
-def run_task(task: str, episodes: int = 1, seed: int = 42) -> float:
+def _run_task_raw(task: str, episodes: int = 1, seed: int = 42) -> float:
     scores = []
     grader = {"easy": grade_easy, "medium": grade_medium, "hard": grade_hard}[task]
 
@@ -32,14 +32,24 @@ def run_task(task: str, episodes: int = 1, seed: int = 42) -> float:
             action = inference_agent(obs)
             obs, reward, done, info = env.step(action)
             trajectory.append({"reward": reward, "info": info})
-        scores.append(grader(env, trajectory))
+        episode_score = grader(env, trajectory)
+        scores.append(float(episode_score))
 
-    return float(np.mean(scores))
+    raw_score = float(np.mean(scores)) if scores else 0.0
+    return raw_score
+
+
+def run_task(task: str, episodes: int = 1, seed: int = 42) -> float:
+    score = _run_task_raw(task=task, episodes=episodes, seed=seed)
+    return FINAL_SCORE(score)
 
 
 def run_all_tasks(episodes: int = 1, seed: int = 42) -> Dict[str, float]:
+    easy = _run_task_raw("easy", episodes=episodes, seed=seed)
+    medium = _run_task_raw("medium", episodes=episodes, seed=seed)
+    hard = _run_task_raw("hard", episodes=episodes, seed=seed)
     return {
-        "easy": run_task("easy", episodes=episodes, seed=seed),
-        "medium": run_task("medium", episodes=episodes, seed=seed),
-        "hard": run_task("hard", episodes=episodes, seed=seed),
+        "easy": FINAL_SCORE(easy),
+        "medium": FINAL_SCORE(medium),
+        "hard": FINAL_SCORE(hard),
     }
