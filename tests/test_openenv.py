@@ -1,7 +1,9 @@
 import os
+import random
 import yaml
 import pytest
 from supply_chain_env import SupplyChainEnv, grade_easy, grade_medium, grade_hard
+from supply_chain_env.grader import grade
 from supply_chain_env.environment import Action, Observation, State
 
 
@@ -49,6 +51,43 @@ def test_grader_empty_trajectory_still_strictly_bounded():
     assert 0.0 < grade_easy(env, []) < 1.0
     assert 0.0 < grade_medium(env, []) < 1.0
     assert 0.0 < grade_hard(env, []) < 1.0
+
+
+def random_trajectory(max_steps=30, max_products=5):
+    length = random.randint(0, max_steps)
+    trajectory = []
+    for _ in range(length):
+        products = random.randint(1, max_products)
+        demand = [random.uniform(-20.0, 80.0) for _ in range(products)]
+        sales = [random.uniform(-20.0, 80.0) for _ in range(products)]
+        orders = [random.uniform(-20.0, 80.0) for _ in range(products)]
+        if random.random() < 0.03:
+            demand[random.randint(0, products - 1)] = float("nan")
+        if random.random() < 0.03:
+            sales[random.randint(0, products - 1)] = float("inf")
+        if random.random() < 0.03:
+            orders[random.randint(0, products - 1)] = float("-inf")
+
+        trajectory.append(
+            {
+                "reward": random.uniform(-1e6, 1e6),
+                "info": {
+                    "demand": demand,
+                    "sales": sales,
+                    "orders": orders,
+                },
+            }
+        )
+    return trajectory
+
+
+def test_absolute_guarantee_score_strict_bounds():
+    for task in ["easy", "medium", "hard"]:
+        for _ in range(1000):
+            s = grade(task, None, random_trajectory())
+            assert 0.0 < s < 1.0
+            assert s != 0.0
+            assert s != 1.0
 
 if __name__ == '__main__':
     pytest.main([os.path.dirname(__file__)])
