@@ -129,18 +129,20 @@ def state(session_id: str) -> Dict[str, Any]:
 
 @app.get("/tasks")
 def tasks() -> Dict[str, Any]:
+    task_details = [
+        {
+            "name": cfg.name,
+            "description": cfg.description,
+            "demand_std": cfg.demand_std,
+            "seasonal_amplitude": cfg.seasonal_amplitude,
+            "disruption_prob": cfg.disruption_prob,
+            "delay_prob": cfg.delay_prob,
+        }
+        for cfg in TASKS.values()
+    ]
     return {
-        "tasks": [
-            {
-                "name": cfg.name,
-                "description": cfg.description,
-                "demand_std": cfg.demand_std,
-                "seasonal_amplitude": cfg.seasonal_amplitude,
-                "disruption_prob": cfg.disruption_prob,
-                "delay_prob": cfg.delay_prob,
-            }
-            for cfg in TASKS.values()
-        ]
+        "tasks": [cfg.name for cfg in TASKS.values()],
+        "task_details": task_details,
     }
 
 
