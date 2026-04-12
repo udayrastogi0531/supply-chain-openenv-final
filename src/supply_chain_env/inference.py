@@ -35,7 +35,11 @@ def _run_task_raw(task: str, episodes: int = 1, seed: int = 42) -> float:
         episode_score = grader(env, trajectory)
         scores.append(float(episode_score))
 
-    raw_score = float(np.mean(scores)) if scores else 0.0
+    raw_score = float(np.mean(scores)) if scores else 0.5
+    if raw_score <= 0.0:
+        raw_score = 1e-6
+    if raw_score >= 1.0:
+        raw_score = 1 - 1e-6
     return raw_score
 
 

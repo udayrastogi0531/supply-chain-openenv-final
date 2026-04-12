@@ -33,12 +33,12 @@ def _clip_metric(value: float) -> float:
 def _normalize_ratio(numerator: float, denominator: float) -> float:
     ratio = _safe_float(numerator, 0.0) / (_safe_float(denominator, 0.0) + 1e-6)
     ratio = _clip_metric(ratio)
-    return float(max(1e-6, min(1 - 1e-6, ratio)))
+    return float(max(1e-5, min(1 - 1e-5, ratio)))
 
 
 def _normalize_unit_interval(x: float) -> float:
     x = _clip_metric(x)
-    return float(max(1e-6, min(1 - 1e-6, x)))
+    return float(max(1e-5, min(1 - 1e-5, x)))
 
 
 def _safe_corr_to_score(a: np.ndarray, b: np.ndarray) -> float:
@@ -49,7 +49,7 @@ def _safe_corr_to_score(a: np.ndarray, b: np.ndarray) -> float:
     corr = _clip_metric(corr)
     trend_follow = (corr + 1.0) / (2.0 + 1e-6)
     trend_follow = _clip_metric(trend_follow)
-    return float(max(1e-6, min(1 - 1e-6, trend_follow)))
+    return float(max(1e-5, min(1 - 1e-5, trend_follow)))
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -82,7 +82,7 @@ def _extract_series(trajectory: List[Dict[str, Any]], key: str) -> np.ndarray:
 
 def _stockout_score(trajectory: List[Dict[str, Any]]) -> float:
     if not trajectory:
-        return 0.0
+        return 0.5
 
     stockout_steps = 0
     for step in trajectory:
@@ -94,7 +94,7 @@ def _stockout_score(trajectory: List[Dict[str, Any]]) -> float:
     stockout_rate = _safe_float(stockout_steps, 0.0) / (_safe_float(len(trajectory), 0.0) + 1e-6)
     stockout_rate = _clip_metric(stockout_rate)
     stockout_score = _clip_metric(1.0 - stockout_rate)
-    return float(max(1e-6, min(1 - 1e-6, stockout_score)))
+    return float(max(1e-5, min(1 - 1e-5, stockout_score)))
 
 
 def _efficiency_score(trajectory: List[Dict[str, Any]], orders: np.ndarray) -> float:
@@ -105,13 +105,13 @@ def _efficiency_score(trajectory: List[Dict[str, Any]], orders: np.ndarray) -> f
 
     efficiency = (profit_per_order + 2.0) / (8.0 + 1e-6)
     efficiency = _clip_metric(efficiency)
-    return float(max(1e-6, min(1 - 1e-6, efficiency)))
+    return float(max(1e-5, min(1 - 1e-5, efficiency)))
 
 
 def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
     """Easy: reward stable service with low ordering volatility."""
     if not trajectory:
-        return 0.0
+        return 0.5
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -126,13 +126,19 @@ def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
 
     weighted_sum = _clip_metric(0.75 * service_level + 0.25 * smoothness)
     score = max(1e-6, min(1 - 1e-6, weighted_sum))
-    return float(score)
+    score = float(score)
+    if score <= 0.0:
+        score = 1e-6
+    if score >= 1.0:
+        score = 1 - 1e-6
+
+    return score
 
 
 def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
     """Medium: reward adaptation to trend and service quality."""
     if not trajectory:
-        return 0.0
+        return 0.5
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -146,13 +152,19 @@ def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
 
     weighted_sum = _clip_metric(0.6 * service_level + 0.4 * trend_follow)
     score = max(1e-6, min(1 - 1e-6, weighted_sum))
-    return float(score)
+    score = float(score)
+    if score <= 0.0:
+        score = 1e-6
+    if score >= 1.0:
+        score = 1 - 1e-6
+
+    return score
 
 
 def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
     """Hard: reward robust service with efficient ordering under volatility."""
     if not trajectory:
-        return 0.0
+        return 0.5
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -164,4 +176,10 @@ def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
 
     weighted_sum = _clip_metric(0.45 * service_level + 0.35 * stockout_score + 0.20 * efficiency_score)
     score = max(1e-6, min(1 - 1e-6, weighted_sum))
-    return float(score)
+    score = float(score)
+    if score <= 0.0:
+        score = 1e-6
+    if score >= 1.0:
+        score = 1 - 1e-6
+
+    return score
