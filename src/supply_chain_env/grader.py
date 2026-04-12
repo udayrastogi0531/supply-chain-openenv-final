@@ -1,3 +1,4 @@
+import math
 from typing import Any, Dict, List
 
 from .graders import FINAL_SCORE, grade_easy, grade_medium, grade_hard
@@ -18,6 +19,8 @@ def grade(task: str, env: Any, trajectory: List[Dict[str, Any]]) -> float:
 
     score = max(-10.0, min(10.0, score))
     score = float(score)
+    if not math.isfinite(score):
+        score = 0.5
     if score <= 0.0:
         score = 1e-6
     if score >= 1.0:

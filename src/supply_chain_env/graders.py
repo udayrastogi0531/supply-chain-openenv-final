@@ -127,6 +127,8 @@ def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
     weighted_sum = _clip_metric(0.75 * service_level + 0.25 * smoothness)
     score = max(1e-6, min(1 - 1e-6, weighted_sum))
     score = float(score)
+    if not math.isfinite(score):
+        score = 0.5
     if score <= 0.0:
         score = 1e-6
     if score >= 1.0:
@@ -153,6 +155,8 @@ def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
     weighted_sum = _clip_metric(0.6 * service_level + 0.4 * trend_follow)
     score = max(1e-6, min(1 - 1e-6, weighted_sum))
     score = float(score)
+    if not math.isfinite(score):
+        score = 0.5
     if score <= 0.0:
         score = 1e-6
     if score >= 1.0:
@@ -177,6 +181,8 @@ def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
     weighted_sum = _clip_metric(0.45 * service_level + 0.35 * stockout_score + 0.20 * efficiency_score)
     score = max(1e-6, min(1 - 1e-6, weighted_sum))
     score = float(score)
+    if not math.isfinite(score):
+        score = 0.5
     if score <= 0.0:
         score = 1e-6
     if score >= 1.0:
