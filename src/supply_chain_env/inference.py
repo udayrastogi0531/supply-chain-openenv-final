@@ -3,36 +3,7 @@ from typing import Dict, List
 import numpy as np
 
 from .environment import Action, SupplyChainEnv
-from .graders import SAFE_FINAL, grade_easy, grade_medium, grade_hard
-
-
-def FINAL_SAFE(x):
-    import math
-
-    try:
-        x = float(x)
-    except:
-        return 0.5
-
-    if not math.isfinite(x):
-        return 0.5
-
-    if x >= 0:
-        z = math.exp(-x)
-        s = 1 / (1 + z)
-    else:
-        z = math.exp(x)
-        s = z / (1 + z)
-
-    eps = 1e-3
-    s = eps + (1 - 2 * eps) * s
-
-    if s <= 0.0:
-        return 0.001
-    if s >= 1.0:
-        return 0.999
-
-    return float(max(0.001, min(0.999, s)))
+from .graders import FINAL_SAFE, grade_easy, grade_medium, grade_hard
 
 
 def inference_agent(observation) -> Action:
@@ -65,7 +36,10 @@ def _run_task_raw(task: str, episodes: int = 1, seed: int = 42) -> float:
         episode_score = grader(env, trajectory)
         scores.append(float(episode_score))
 
-    raw_score = float(np.mean(scores)) if scores else 0.5
+    try:
+        raw_score = float(np.mean(scores)) if scores else 0.5
+    except:
+        raw_score = 0.5
     if not math.isfinite(raw_score):
         raw_score = 0.5
     return raw_score
