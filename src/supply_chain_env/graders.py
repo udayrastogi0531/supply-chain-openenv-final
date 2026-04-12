@@ -4,26 +4,33 @@ from typing import Any, Dict, List
 import numpy as np
 
 
-def FINAL_SCORE(x):
+def SAFE_FINAL(x):
+    import math
+
     try:
         x = float(x)
     except:
         return 0.5
 
-    # NaN / inf guard
     if not math.isfinite(x):
         return 0.5
 
-    # squash (very stable)
-    x = math.tanh(x)
-
-    # map to (0,1)
-    x = (x + 1.0) / 2.0
+    # SAFE SIGMOID (NO SATURATION TO EXACT 1)
+    if x >= 0:
+        z = math.exp(-x)
+        s = 1 / (1 + z)
+    else:
+        z = math.exp(x)
+        s = z / (1 + z)
 
     eps = 1e-4
-    x = eps + (1 - 2 * eps) * x
+    s = eps + (1 - 2 * eps) * s
 
-    return float(max(eps, min(1 - eps, x)))
+    return float(max(eps, min(1 - eps, s)))
+
+
+def FINAL_SCORE(x):
+    return SAFE_FINAL(x)
 
 
 def _clip_metric(value: float) -> float:
@@ -33,23 +40,32 @@ def _clip_metric(value: float) -> float:
 def _normalize_ratio(numerator: float, denominator: float) -> float:
     ratio = _safe_float(numerator, 0.0) / (_safe_float(denominator, 0.0) + 1e-6)
     ratio = _clip_metric(ratio)
-    return float(max(1e-5, min(1 - 1e-5, ratio)))
+    return float(ratio)
 
 
 def _normalize_unit_interval(x: float) -> float:
     x = _clip_metric(x)
-    return float(max(1e-5, min(1 - 1e-5, x)))
+    return float(x)
 
 
 def _safe_corr_to_score(a: np.ndarray, b: np.ndarray) -> float:
     corr = 0.0
-    if len(a) > 1 and len(b) > 1 and np.std(a) >= 1e-9 and np.std(b) >= 1e-9:
-        corr = _safe_float(np.corrcoef(a, b)[0, 1], 0.0)
+    try:
+        std_a = np.std(a)
+        std_b = np.std(b)
+    except:
+        return 0.5
+
+    if len(a) > 1 and len(b) > 1 and std_a >= 1e-9 and std_b >= 1e-9:
+        try:
+            corr = _safe_float(np.corrcoef(a, b)[0, 1], 0.0)
+        except:
+            return 0.5
 
     corr = _clip_metric(corr)
     trend_follow = (corr + 1.0) / (2.0 + 1e-6)
     trend_follow = _clip_metric(trend_follow)
-    return float(max(1e-5, min(1 - 1e-5, trend_follow)))
+    return float(trend_follow)
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -76,13 +92,16 @@ def _safe_info_sum(step: Dict[str, Any], key: str) -> float:
 
 
 def _extract_series(trajectory: List[Dict[str, Any]], key: str) -> np.ndarray:
-    series = [_safe_info_sum(step, key) for step in trajectory]
+    try:
+        series = [float(sum(step.get("info", {}).get(key, []))) for step in trajectory]
+    except:
+        return np.array([0.0], dtype=float)
     return np.array(series, dtype=float)
 
 
 def _stockout_score(trajectory: List[Dict[str, Any]]) -> float:
     if not trajectory:
-        return 0.5
+        return SAFE_FINAL(0.5)
 
     stockout_steps = 0
     for step in trajectory:
@@ -94,7 +113,7 @@ def _stockout_score(trajectory: List[Dict[str, Any]]) -> float:
     stockout_rate = _safe_float(stockout_steps, 0.0) / (_safe_float(len(trajectory), 0.0) + 1e-6)
     stockout_rate = _clip_metric(stockout_rate)
     stockout_score = _clip_metric(1.0 - stockout_rate)
-    return float(max(1e-5, min(1 - 1e-5, stockout_score)))
+    return float(stockout_score)
 
 
 def _efficiency_score(trajectory: List[Dict[str, Any]], orders: np.ndarray) -> float:
@@ -105,42 +124,40 @@ def _efficiency_score(trajectory: List[Dict[str, Any]], orders: np.ndarray) -> f
 
     efficiency = (profit_per_order + 2.0) / (8.0 + 1e-6)
     efficiency = _clip_metric(efficiency)
-    return float(max(1e-5, min(1 - 1e-5, efficiency)))
+    return float(efficiency)
 
 
 def grade_easy(env, trajectory: List[Dict[str, Any]]) -> float:
     """Easy: reward stable service with low ordering volatility."""
     if not trajectory:
-        return 0.5
+        return SAFE_FINAL(0.5)
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
     orders = _extract_series(trajectory, "orders")
 
     service_level = _normalize_ratio(np.sum(sales), np.sum(demand))
-    mean_orders = _clip_metric(np.mean(orders))
-    volatility = np.std(orders) / (abs(mean_orders) + 1e-6)
+    try:
+        mean_orders = _clip_metric(np.mean(orders))
+    except:
+        return SAFE_FINAL(0.5)
+    try:
+        volatility = np.std(orders) / (abs(mean_orders) + 1e-6)
+    except:
+        return SAFE_FINAL(0.5)
     volatility = _clip_metric(max(0.0, _safe_float(volatility, 0.0)))
     smoothness = 1.0 / (1.0 + volatility + 1e-6)
     smoothness = _normalize_unit_interval(smoothness)
 
     weighted_sum = _clip_metric(0.75 * service_level + 0.25 * smoothness)
-    score = max(1e-6, min(1 - 1e-6, weighted_sum))
-    score = float(score)
-    if not math.isfinite(score):
-        score = 0.5
-    if score <= 0.0:
-        score = 1e-6
-    if score >= 1.0:
-        score = 1 - 1e-6
-
-    return score
+    score = float(weighted_sum)
+    return SAFE_FINAL(score)
 
 
 def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
     """Medium: reward adaptation to trend and service quality."""
     if not trajectory:
-        return 0.5
+        return SAFE_FINAL(0.5)
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -148,27 +165,25 @@ def grade_medium(env, trajectory: List[Dict[str, Any]]) -> float:
 
     service_level = _normalize_ratio(np.sum(sales), np.sum(demand))
 
-    d_delta = np.diff(demand)
-    o_delta = np.diff(orders)
+    try:
+        d_delta = np.diff(demand)
+    except:
+        return SAFE_FINAL(0.5)
+    try:
+        o_delta = np.diff(orders)
+    except:
+        return SAFE_FINAL(0.5)
     trend_follow = _safe_corr_to_score(d_delta, o_delta)
 
     weighted_sum = _clip_metric(0.6 * service_level + 0.4 * trend_follow)
-    score = max(1e-6, min(1 - 1e-6, weighted_sum))
-    score = float(score)
-    if not math.isfinite(score):
-        score = 0.5
-    if score <= 0.0:
-        score = 1e-6
-    if score >= 1.0:
-        score = 1 - 1e-6
-
-    return score
+    score = float(weighted_sum)
+    return SAFE_FINAL(score)
 
 
 def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
     """Hard: reward robust service with efficient ordering under volatility."""
     if not trajectory:
-        return 0.5
+        return SAFE_FINAL(0.5)
 
     demand = _extract_series(trajectory, "demand")
     sales = _extract_series(trajectory, "sales")
@@ -179,13 +194,5 @@ def grade_hard(env, trajectory: List[Dict[str, Any]]) -> float:
     efficiency_score = _efficiency_score(trajectory, orders)
 
     weighted_sum = _clip_metric(0.45 * service_level + 0.35 * stockout_score + 0.20 * efficiency_score)
-    score = max(1e-6, min(1 - 1e-6, weighted_sum))
-    score = float(score)
-    if not math.isfinite(score):
-        score = 0.5
-    if score <= 0.0:
-        score = 1e-6
-    if score >= 1.0:
-        score = 1 - 1e-6
-
-    return score
+    score = float(weighted_sum)
+    return SAFE_FINAL(score)

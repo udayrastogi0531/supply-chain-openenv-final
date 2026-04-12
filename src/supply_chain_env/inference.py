@@ -3,7 +3,7 @@ from typing import Dict, List
 import numpy as np
 
 from .environment import Action, SupplyChainEnv
-from .graders import FINAL_SCORE, grade_easy, grade_medium, grade_hard
+from .graders import SAFE_FINAL, grade_easy, grade_medium, grade_hard
 
 
 def inference_agent(observation) -> Action:
@@ -39,16 +39,12 @@ def _run_task_raw(task: str, episodes: int = 1, seed: int = 42) -> float:
     raw_score = float(np.mean(scores)) if scores else 0.5
     if not math.isfinite(raw_score):
         raw_score = 0.5
-    if raw_score <= 0.0:
-        raw_score = 1e-6
-    if raw_score >= 1.0:
-        raw_score = 1 - 1e-6
     return raw_score
 
 
 def run_task(task: str, episodes: int = 1, seed: int = 42) -> float:
     score = _run_task_raw(task=task, episodes=episodes, seed=seed)
-    return FINAL_SCORE(score)
+    return SAFE_FINAL(score)
 
 
 def run_all_tasks(episodes: int = 1, seed: int = 42) -> Dict[str, float]:
@@ -56,7 +52,7 @@ def run_all_tasks(episodes: int = 1, seed: int = 42) -> Dict[str, float]:
     medium = _run_task_raw("medium", episodes=episodes, seed=seed)
     hard = _run_task_raw("hard", episodes=episodes, seed=seed)
     return {
-        "easy": FINAL_SCORE(easy),
-        "medium": FINAL_SCORE(medium),
-        "hard": FINAL_SCORE(hard),
+        "easy": SAFE_FINAL(easy),
+        "medium": SAFE_FINAL(medium),
+        "hard": SAFE_FINAL(hard),
     }
